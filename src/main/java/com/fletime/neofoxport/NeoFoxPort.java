@@ -1,103 +1,83 @@
 package com.fletime.neofoxport;
 
-import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.texture.TextureManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.ColorHelper;
-import net.minecraft.util.Colors;
+import com.mojang.blaze3d.platform.NativeImage;
+import java.io.IOException;
+import java.io.InputStream;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.texture.MipmapStrategy;
+import net.minecraft.client.renderer.texture.ReloadableTexture;
+import net.minecraft.client.renderer.texture.TextureContents;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.resources.metadata.texture.TextureMetadataSection;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.Util;
 
-/**
- * NeoFoxPort - 在启动界面添加转圈的小狐狸动画
- */
-public class NeoFoxPort implements ClientModInitializer {
+public class NeoFoxPort {
 	public static final String MOD_ID = "neofoxport";
-	
-	private static final Identifier[] FOX_TEXTURES = new Identifier[28];
-	private static final int TOTAL_FRAMES = 28;
-	private static final int DISPLAY_WIDTH = 91;  // 151 * 0.6
-	private static final int DISPLAY_HEIGHT = 77; // 128 * 0.6
+
+	private static final Identifier FOX_TEXTURE = Identifier.fromNamespaceAndPath(MOD_ID, "textures/fox_running.png");
+	private static final int FRAME_COUNT = 28;
+	private static final int DISPLAY_WIDTH = 151;
+	private static final int DISPLAY_HEIGHT = 128;
+	private static final int LAYOUT_WIDTH = 854;
+	private static final int LAYOUT_HEIGHT = 480;
 	private static final int MARGIN_RIGHT = 10;
-	private static final int MARGIN_BOTTOM = 16;
-	
-	private static long lastFrameTime = 0;
-	private static int currentFrame = 0;
-	private static boolean texturesRegistered = false;
-	
-	static {
-		for (int i = 0; i < 28; i++) {
-			FOX_TEXTURES[i] = Identifier.of("neofoxport", "textures/fox_running_" + (i + 1) + ".png");
-		}
-	}
-	
-	@Override
-	public void onInitializeClient() {
-		// 客户端初始化完成
-	}
-	
+	private static final int REM_SIZE = 34;
+	private static final int MARGIN_BOTTOM = REM_SIZE;
+	private static final long FRAME_TIME_MS = 50;
+
 	public static void registerTextures(TextureManager textureManager) {
-		if (!texturesRegistered) {
-			for (int i = 0; i < TOTAL_FRAMES; i++) {
-				textureManager.registerTexture(FOX_TEXTURES[i], new BuiltinResourceTexture(FOX_TEXTURES[i]));
-			}
-			texturesRegistered = true;
-		}
+		textureManager.registerAndLoad(FOX_TEXTURE, new FoxTexture(FOX_TEXTURE));
 	}
-	
-	public static void render(MinecraftClient client, DrawContext context, float delta) {
-		registerTextures(client.getTextureManager());
-		
-		// 每60ms更新一帧
-		long currentTime = System.nanoTime() / 1_000_000;
-		if (lastFrameTime == 0) {
-			lastFrameTime = currentTime;
+
+	public static void render(GuiGraphicsExtractor graphics) {
+		int frame = (int) (Util.getMillis() / FRAME_TIME_MS % FRAME_COUNT);
+		float vUnit = 1.0f / FRAME_COUNT;
+		float v0 = frame * vUnit;
+		float v1 = (frame + 1) * vUnit;
+
+		int guiWidth = graphics.guiWidth();
+		int guiHeight = graphics.guiHeight();
+		float scale;
+		float offsetX;
+		float offsetY;
+		if (guiWidth / (float) guiHeight > LAYOUT_WIDTH / (float) LAYOUT_HEIGHT) {
+			scale = guiHeight / (float) LAYOUT_HEIGHT;
+			offsetX = (guiWidth - LAYOUT_WIDTH * scale) / 2f;
+			offsetY = 0f;
+		} else {
+			scale = guiWidth / (float) LAYOUT_WIDTH;
+			offsetX = 0f;
+			offsetY = (guiHeight - LAYOUT_HEIGHT * scale) / 2f;
 		}
-		
-		if (currentTime - lastFrameTime >= 60) {
-			currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
-			lastFrameTime = currentTime;
-		}
-		
-		// 计算位置（右下角）
-		int screenWidth = client.getWindow().getScaledWidth();
-		int screenHeight = client.getWindow().getScaledHeight();
-		int foxX = screenWidth - DISPLAY_WIDTH - MARGIN_RIGHT;
-		int foxY = screenHeight - DISPLAY_HEIGHT - MARGIN_BOTTOM;
-		
-		// 绘制狐狸
-		context.drawTexture(
-			RenderPipelines.GUI_TEXTURED,
-			FOX_TEXTURES[currentFrame],
-			foxX, foxY,
-			0, 0,
-			DISPLAY_WIDTH, DISPLAY_HEIGHT,
-			DISPLAY_WIDTH, DISPLAY_HEIGHT,
-			ColorHelper.withAlpha(1.0f, Colors.WHITE)
-		);
+
+		int foxX = Math.round(offsetX + (LAYOUT_WIDTH - MARGIN_RIGHT - DISPLAY_WIDTH) * scale);
+		int foxY = Math.round(offsetY + (LAYOUT_HEIGHT - MARGIN_BOTTOM - DISPLAY_HEIGHT) * scale);
+		int foxWidth = Math.round(DISPLAY_WIDTH * scale);
+		int foxHeight = Math.round(DISPLAY_HEIGHT * scale);
+
+		graphics.blit(FOX_TEXTURE, foxX, foxY, foxX + foxWidth, foxY + foxHeight, 0.0f, 1.0f, v0, v1);
 	}
-	
-	private static class BuiltinResourceTexture extends net.minecraft.client.texture.ResourceTexture {
-		public BuiltinResourceTexture(Identifier location) {
-			super(location);
+
+	private static class FoxTexture extends ReloadableTexture {
+		public FoxTexture(Identifier resourceId) {
+			super(resourceId);
 		}
-		
+
 		@Override
-		public net.minecraft.client.texture.TextureContents loadContents(net.minecraft.resource.ResourceManager resourceManager) {
-			final String path = "assets/" + getId().getNamespace() + "/" + getId().getPath();
-			
-			try (java.io.InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
+		public TextureContents loadContents(ResourceManager resourceManager) throws IOException {
+			final String path = "assets/" + resourceId().getNamespace() + "/" + resourceId().getPath();
+
+			try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
 				if (input != null) {
-					return new net.minecraft.client.texture.TextureContents(
-						net.minecraft.client.texture.NativeImage.read(input), 
-						new net.minecraft.client.resource.metadata.TextureResourceMetadata(true, true)
+					return new TextureContents(
+						NativeImage.read(input),
+						new TextureMetadataSection(false, false, MipmapStrategy.MEAN, 0.0f)
 					);
 				}
-			} catch (java.io.IOException e) {
-				// 忽略错误
 			}
-			return net.minecraft.client.texture.TextureContents.createMissing();
+			return TextureContents.createMissing();
 		}
 	}
 }

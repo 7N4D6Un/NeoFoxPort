@@ -1,11 +1,7 @@
-# NeoFoxPort 🦊
+# NeoFoxPort
 
-在 Fabric 启动屏幕上添加 NeoForge 风格的小狐狸动画。
+Add a NeoForge Style fox animation to the Fabric startup screen.
 
-**重要**：本模组中使用的狐狸动画纹理版权归 **NeoForge** 和 **MoJang** 所有。
+## License
 
----
-
-## 许可证
-
-本项目采用 [CC0-1.0](LICENSE) 许可证。
+This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects.
