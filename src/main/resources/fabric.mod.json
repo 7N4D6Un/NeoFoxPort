@@ -8,6 +8,7 @@
 		"FleTime"
 	],
 	"contact": {
+		"homepage": "https://modrinth.com/mod/neofoxport",
 		"sources": "https://github.com/7N4D6Un/NeoFoxPort"
 	},
 	"license": "CC0-1.0",
@@ -18,7 +19,7 @@
 	],
 	"depends": {
 		"fabricloader": ">=0.19.3",
-		"minecraft": "~26.2",
+		"minecraft": ">=26.2",
 		"java": ">=25"
 	}
 }
